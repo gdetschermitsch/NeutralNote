@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NeutralNote©</title>
+  <link rel="icon" href="./NeutralNote.ico" type="image/x-icon" />
+  <link rel="shortcut icon" href="./NeutralNote.ico" type="image/x-icon" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <h1><img src="./NeutralNoteTitle.png" class="title-img" alt="NeutralNote"/></h1>
+        <p class="subtitle">By CRUXTAIN™ · Live browser-based capture for public debate and discourse sessions.</p>
+      </div>
+      <div class="topbar-actions">
+        <button id="aboutBtn">About</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel controls-panel">
+        <div class="panel-heading">
+          <h2>Capture</h2>
+          <button id="toggleCaptureBtn" class="panel-toggle" aria-expanded="true">Minimize</button>
+        </div>
+
+        <section class="startup-panel" aria-labelledby="startupTitle">
+          <div class="startup-header">
+            <div>
+              <h3 id="startupTitle">Startup Status</h3>
+              <p class="helper-text startup-subtitle">Check browser support and microphone access before you start a live session. Device selection applies to bite audio capture and the input meter. Live transcription follows the browser's speech-recognition microphone behavior.</p>
+            </div>
+            <div class="startup-actions">
+              <button id="runSystemCheckBtn">Run Check</button>
+            </div>
+          </div>
+
+          <div class="status-grid">
+            <div class="status-chip"><span>Browser</span><strong id="browserStatus">Checking…</strong></div>
+            <div class="status-chip"><span>Secure Context</span><strong id="secureContextStatus">Checking…</strong></div>
+            <div class="status-chip"><span>Microphone API</span><strong id="microphoneApiStatus">Checking…</strong></div>
+            <div class="status-chip"><span>Speech Recognition</span><strong id="speechApiStatus">Checking…</strong></div>
+            <div class="status-chip"><span>Permissions</span><strong id="permissionStatus">Checking…</strong></div>
+            <div class="status-chip"><span>Recommended Browser</span><strong id="browserRecommendation">Checking…</strong></div>
+          </div>
+
+          <div id="systemMessage" class="notice startup-notice">Running startup check…</div>
+          <div id="permissionHelp" class="helper-text permission-help" hidden>Microphone blocked. Click the padlock/site settings icon in your browser, allow microphone access, then run the check again.</div>
+          <div id="exportWarning" class="warning-box">WebM/browser export behavior depends on the browser. Session export in NeutralNote© is JSON plus embedded bite audio, not real-time video rendering.</div>
+        </section>
+
+        
+      </section>
+
+      <div id="aboutModal" class="modal" hidden>
+        <div class="modal-backdrop" id="aboutBackdrop"></div>
+        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+          <div class="modal-header">
+            <h2 id="aboutTitle">About NeutralNote©</h2>
+            <button id="closeAboutBtn" class="panel-toggle">Close</button>
+          </div>
+          <div class="notice modal-notice">
+			<strong>⚠️ IMPORTANT :</strong><br>
+			This project is NOT open source. All rights reserved under the CRUXTAIN™ Public Use License. Unauthorized reproduction, redistribution, or rebranding of CRUXTAIN™
+software or marks without permission is prohibited. You may use and study it freely, but may NOT: Reupload, Repackage, Sell, nor Distribute modified versions<br><br>
+			<strong>Quick Use Guide:</strong><br><br>
+
+            1. Click <strong>Run Check</strong> and ensure all systems are ready.<br>
+            2. Select your <strong>Audio Input for bite audio + meter</strong> and <strong>Language</strong>.<br>
+            3. Enter <strong>Topic Title</strong> and <strong>Speakers Present</strong>.<br>
+            4. Click <strong>Start Session</strong> to begin live transcription.<br>
+            <em>Note: the selected audio input controls the bite-audio capture and input meter. Live transcription still depends on how the browser routes speech recognition.</em><br><br>
+            5. Speak clearly — transcript appears in real time.<br>
+            6. Click <strong>Stop Session</strong> when finished.<br>
+            7. Review and edit <strong>Transcript Bites</strong> if needed.<br>
+            8. Click <strong>Export Session</strong> to save your data.<br>
+            9. Use <strong>Clear Session</strong> to reset everything.<br><br>
+
+            <em>Best performance in Chromium-based browsers.</em>
+          </div>
+        </div>
+      </div>
+
+      <section class="panel live-panel">
+        <h2>Live Transcript</h2>
+        <div class="live-box" id="liveBox">Awaiting session start…</div>
+<div id="captureBody" class="capture-body">
+          <div class="grid-two">
+            <label>
+              Audio Input for Bite Audio + Meter
+              <select id="audioDeviceSelect"></select>
+            </label>
+            <label>
+              Language
+              <select id="languageSelect">
+                <option value="en-US">English (US)</option>
+                <option value="en-GB">English (UK)</option>
+                <option value="es-US">Spanish (US)</option>
+                <option value="es-ES">Spanish (Spain)</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="notice transcription-notice">Transcription uses your browser's speech recognition engine, which may continue to follow the browser or operating system default microphone even when a different input is selected above.</div>
+
+          <div class="session-meta-inline capture-meta">
+            <label>
+              Topic Title
+              <input id="topicTitle" type="text" placeholder="Debate topic / event title" />
+            </label>
+            <label>
+              Speakers Present
+              <input id="speakersPresent" type="text" placeholder="Speaker A, Speaker B" />
+            </label>
+          </div>
+
+          <div class="button-row">
+            <button id="refreshDevicesBtn">Refresh Devices</button>
+            <button id="startBtn" class="primary">Start Session</button>
+            <button id="stopBtn" disabled>Stop Session</button>
+            <button id="exportBtn">Export Session</button>
+            <button id="clearBtn" class="danger">Clear Session</button>
+          </div>
+
+          <div class="status-row capture-status-row">
+            <div class="status-card">
+              <span class="label">Session Status</span>
+              <strong id="sessionStatus">Idle</strong>
+            </div>
+            <div class="status-card">
+              <span class="label">Recognition</span>
+              <strong id="recognitionStatus">Not started</strong>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-card monitor-card">
+          <span class="label">Input Monitor</span>
+          <canvas id="meterCanvas" width="260" height="48"></canvas>
+        </div>
+      </section>
+
+      <section class="panel bites-panel">
+        <div class="bites-header">
+          <h2>Transcript Bites</h2>
+          <div class="small-stats">
+            <span id="biteCount">0 bites</span>
+          </div>
+        </div>
+        <div id="bitesList" class="bites-list"></div>
+      </section>
+    </main>
+  </div>
+
+  <template id="biteTemplate">
+    <article class="bite-card">
+      <div class="bite-top">
+        <div>
+          <div class="bite-time"></div>
+          <div class="bite-range"></div>
+        </div>
+        <div class="bite-controls-inline">
+          <button class="download-bite-btn">Save Audio</button>
+          <button class="delete-bite-btn danger">Delete</button>
+        </div>
+      </div>
+
+      <label>
+        Assigned Speaker
+        <select class="speaker-select">
+          <option value="Unassigned">Unassigned</option>
+          <option value="Speaker A">Speaker A</option>
+          <option value="Speaker B">Speaker B</option>
+          <option value="Moderator">Moderator</option>
+          <option value="Audience">Audience</option>
+          <option value="Mixed/Interruption">Mixed/Interruption</option>
+        </select>
+      </label>
+
+      <label>
+        Transcript
+        <textarea class="bite-text" rows="4"></textarea>
+      </label>
+
+      <audio class="bite-audio" controls preload="metadata"></audio>
+    </article>
+  </template>
+
+  <script src="./app.js"></script>
+</body>
+</html>
