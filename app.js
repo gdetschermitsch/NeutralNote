@@ -445,6 +445,7 @@
       state.audioContext.close().catch(() => {});
       state.audioContext = null;
     }
+    state.captureWorkletLoaded = false;
   }
 
   function resetSessionStateForFailure() {
@@ -649,6 +650,46 @@
     return true;
   }
 
+  function createScriptProcessorRecorder() {
+    if (!state.audioContext || !state.audioContext.createScriptProcessor) {
+      throw new Error('This browser cannot create a mobile-safe audio recorder.');
+    }
+    const processor = state.audioContext.createScriptProcessor(2048, 1, 1);
+    processor.onaudioprocess = (event) => {
+      appendPCMChunk(event.inputBuffer.getChannelData(0));
+    };
+    return processor;
+  }
+
+  async function createBestRecorderProcessor() {
+    if (state.audioContext && state.audioContext.audioWorklet && window.AudioWorkletNode) {
+      try {
+        await ensureRecorderWorkletLoaded();
+        const processor = new AudioWorkletNode(state.audioContext, 'recorder-processor', {
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          channelCount: 1,
+          channelCountMode: 'explicit',
+          channelInterpretation: 'speakers'
+        });
+        processor.port.onmessage = (event) => {
+          appendPCMChunk(event.data);
+        };
+        processor.port.onmessageerror = (event) => {
+          console.error('Recorder worklet message error', event);
+        };
+        return processor;
+      } catch (err) {
+        console.warn('AudioWorklet recorder failed. Falling back to ScriptProcessorNode for mobile WebKit wrappers.', err);
+        state.captureWorkletLoaded = false;
+      }
+    }
+
+    const processor = createScriptProcessorRecorder();
+    console.warn('Using ScriptProcessorNode fallback for recorder capture.');
+    return processor;
+  }
+
   async function startAudioRecorder(stream) {
     if (!AudioContextClass) throw new Error('Web Audio is not supported in this browser.');
     if (!state.audioContext) state.audioContext = new AudioContextClass({ latencyHint: 'interactive' });
@@ -663,30 +704,7 @@
     const sink = state.audioContext.createGain();
     sink.gain.value = 0;
 
-    let processor;
-
-    if (state.audioContext.audioWorklet && window.AudioWorkletNode) {
-      await ensureRecorderWorkletLoaded();
-      processor = new AudioWorkletNode(state.audioContext, 'recorder-processor', {
-        numberOfInputs: 1,
-        numberOfOutputs: 1,
-        channelCount: 1,
-        channelCountMode: 'explicit',
-        channelInterpretation: 'speakers'
-      });
-      processor.port.onmessage = (event) => {
-        appendPCMChunk(event.data);
-      };
-      processor.port.onmessageerror = (event) => {
-        console.error('Recorder worklet message error', event);
-      };
-    } else {
-      processor = state.audioContext.createScriptProcessor(2048, 1, 1);
-      processor.onaudioprocess = (event) => {
-        appendPCMChunk(event.inputBuffer.getChannelData(0));
-      };
-      console.warn('AudioWorkletNode not available. Falling back to deprecated ScriptProcessorNode.');
-    }
+    const processor = await createBestRecorderProcessor();
 
     source.connect(processor);
     processor.connect(sink);
@@ -1034,7 +1052,8 @@
       resetSessionStateForFailure();
       const message = err && err.message ? err.message : 'Could not start session.';
       updateSystemMessage(`Could not start session: ${message}`, 'bad');
-      els.permissionHelp.hidden = false;
+      const permissionLikeError = err && ['NotAllowedError', 'PermissionDeniedError', 'SecurityError'].includes(err.name);
+      els.permissionHelp.hidden = !permissionLikeError;
     }
   }
 
