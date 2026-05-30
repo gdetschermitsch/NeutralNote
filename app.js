@@ -108,6 +108,55 @@
     return { name: 'Unknown browser', chromiumBased: false };
   }
 
+  function isMobileBrowser() {
+    const ua = navigator.userAgent || '';
+    const coarsePointer = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    const narrowViewport = window.matchMedia && window.matchMedia('(max-width: 820px)').matches;
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (coarsePointer && narrowViewport);
+  }
+
+  function buildAudioConstraints(deviceId, mode) {
+    const useMobileSafeDefaults = isMobileBrowser();
+    if (!deviceId || deviceId === 'default') {
+      return {
+        echoCancellation: useMobileSafeDefaults ? true : false,
+        noiseSuppression: useMobileSafeDefaults ? true : false,
+        autoGainControl: useMobileSafeDefaults ? true : false,
+        channelCount: 1
+      };
+    }
+
+    const deviceConstraint = mode === 'exact' ? { exact: deviceId } : { ideal: deviceId };
+    return {
+      deviceId: deviceConstraint,
+      echoCancellation: useMobileSafeDefaults ? true : false,
+      noiseSuppression: useMobileSafeDefaults ? true : false,
+      autoGainControl: useMobileSafeDefaults ? true : false,
+      channelCount: 1
+    };
+  }
+
+  async function getAudioStreamWithFallback(deviceId) {
+    const attempts = [];
+    if (deviceId && deviceId !== 'default') {
+      attempts.push({ audio: buildAudioConstraints(deviceId, 'exact') });
+      attempts.push({ audio: buildAudioConstraints(deviceId, 'ideal') });
+    }
+    attempts.push({ audio: buildAudioConstraints('', 'default') });
+    attempts.push({ audio: true });
+
+    let lastError = null;
+    for (const constraints of attempts) {
+      try {
+        return await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        lastError = err;
+        console.warn('Microphone attempt failed, trying fallback.', err);
+      }
+    }
+    throw lastError || new Error('Could not open the microphone.');
+  }
+
   function setFeatureStatus(el, text, tone) {
     el.textContent = text;
     el.classList.remove('status-ok', 'status-warn', 'status-bad');
@@ -458,7 +507,7 @@
   async function ensureDevicePermission() {
     let tempStream;
     try {
-      tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tempStream = await getAudioStreamWithFallback('');
       return tempStream;
     } catch (err) {
       throw new Error(buildPermissionError(err));
@@ -468,11 +517,11 @@
   }
 
   function chooseBestDevice(audioInputs) {
-    if (!audioInputs.length) return '';
+    if (!audioInputs.length) return 'default';
     const exact = audioInputs.find(device => device.deviceId === state.preferredDeviceId);
     if (exact) return exact.deviceId;
-    const defaultLike = audioInputs.find(device => /default/i.test(device.label || ''));
-    return (defaultLike || audioInputs[0]).deviceId;
+    const defaultLike = audioInputs.find(device => /default/i.test(device.label || '') || device.deviceId === 'default');
+    return (defaultLike || audioInputs[0]).deviceId || 'default';
   }
 
   async function loadDevices() {
@@ -494,9 +543,14 @@
         return;
       }
 
+      const defaultOpt = document.createElement('option');
+      defaultOpt.value = 'default';
+      defaultOpt.textContent = isMobileBrowser() ? 'Default Microphone (mobile safe)' : 'Default Microphone';
+      els.audioDeviceSelect.appendChild(defaultOpt);
+
       audioInputs.forEach((device, index) => {
         const opt = document.createElement('option');
-        opt.value = device.deviceId;
+        opt.value = device.deviceId || 'default';
         opt.textContent = device.label || `Audio Input ${index + 1}`;
         els.audioDeviceSelect.appendChild(opt);
       });
@@ -911,12 +965,12 @@
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await getAudioStreamWithFallback('');
       stream.getTracks().forEach(track => track.stop());
       setFeatureStatus(els.permissionStatus, 'Granted', 'status-ok');
       if (!SpeechRecognitionClass) {
-        els.startBtn.disabled = true;
-        updateSystemMessage('Microphone access is working, but speech recognition is missing here. Start Session is disabled. Use Chrome or Edge.', 'warn');
+        els.startBtn.disabled = false;
+        updateSystemMessage('Microphone access is working. This browser does not expose speech recognition, so mobile sessions can still record bite audio and use the input meter, but live auto-transcription may be unavailable.', 'warn');
       } else if (!window.isSecureContext) {
         updateSystemMessage('Microphone access is working, but secure context detection is off.', 'warn');
       } else if (!browser.chromiumBased) {
@@ -936,16 +990,7 @@
 
   async function startSession() {
     if (state.running) return;
-    const selectedDeviceId = els.audioDeviceSelect.value;
-    if (!selectedDeviceId) {
-      updateSystemMessage('Select an audio input device first, then start the session.', 'warn');
-      return;
-    }
-    if (!SpeechRecognitionClass) {
-      updateSystemMessage('Speech recognition is not available here. Use Chrome or Edge to start a session.', 'bad');
-      els.startBtn.disabled = true;
-      return;
-    }
+    const selectedDeviceId = els.audioDeviceSelect.value || state.preferredDeviceId || 'default';
 
     savePreferences();
     els.startBtn.disabled = true;
@@ -955,16 +1000,7 @@
     els.liveBox.textContent = 'Starting session…';
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: { exact: selectedDeviceId },
-          echoCancellation: false,
-          noiseSuppression: false,
-          autoGainControl: false,
-          channelCount: 1,
-          sampleRate: 48000
-        }
-      });
+      const stream = await getAudioStreamWithFallback(selectedDeviceId);
 
       state.stream = stream;
       state.sessionStartedAt = Date.now();
@@ -976,14 +1012,21 @@
 
       await startAudioRecorder(stream);
       await startMeter(stream);
-      startRecognition();
+      if (SpeechRecognitionClass) {
+        startRecognition();
+      } else {
+        setRecognitionStatus('Unavailable');
+        state.pendingInterim = '';
+      }
 
       startAutosaveTimer();
       autosaveSessionDraft();
       setStatus('Running');
       els.stopBtn.disabled = false;
       els.liveBox.textContent = 'Listening…';
-      updateSystemMessage('Session started. NeutralNote is capturing bite audio from the selected input and running live transcription through the browser speech engine.', 'ok');
+      updateSystemMessage(SpeechRecognitionClass
+        ? 'Session started. NeutralNote is capturing bite audio from the selected input and running live transcription through the browser speech engine.'
+        : 'Session started in mobile-safe audio mode. Bite audio and the input meter are active; live auto-transcription is unavailable in this browser.', 'ok');
     } catch (err) {
       console.error(err);
       teardownRecognition();
