@@ -866,7 +866,6 @@
       const speakerSelect = frag.querySelector('.speaker-select');
       const textArea = frag.querySelector('.bite-text');
       const audio = frag.querySelector('.bite-audio');
-      const dlBtn = frag.querySelector('.download-bite-btn');
       const delBtn = frag.querySelector('.delete-bite-btn');
 
       timeEl.textContent = formatDateTime(bite.startAt);
@@ -889,13 +888,6 @@
       textArea.addEventListener('input', () => {
         bite.text = textArea.value;
         autosaveSessionDraft();
-      });
-      dlBtn.addEventListener('click', () => {
-        if (!bite.audioBlob) return;
-        const a = document.createElement('a');
-        a.href = bite.audioUrl;
-        a.download = `bite_${formatClock(bite.startAt - ((bite.sessionStartedAt || bite.startAt))).replace(/:/g, '-')}.wav`;
-        a.click();
       });
       delBtn.addEventListener('click', () => {
         if (bite.audioUrl) URL.revokeObjectURL(bite.audioUrl);
@@ -1360,13 +1352,33 @@
     }
   }
 
+  async function restoreMissingAudioForExport() {
+    if (!window.indexedDB || !state.bites.some((bite) => !bite.audioBlob)) return;
+    try {
+      const storedBites = await readAutosavedBites();
+      const storedById = new Map(storedBites.filter((bite) => bite && bite.id).map((bite) => [bite.id, bite]));
+      state.bites.forEach((bite) => {
+        if (bite.audioBlob || !bite.id) return;
+        const stored = storedById.get(bite.id);
+        if (!stored || !stored.audioBlob) return;
+        bite.audioBlob = stored.audioBlob;
+        if (bite.audioUrl) URL.revokeObjectURL(bite.audioUrl);
+        bite.audioUrl = URL.createObjectURL(bite.audioBlob);
+      });
+    } catch (err) {
+      console.warn('Could not restore autosaved bite audio before export', err);
+    }
+  }
+
   async function exportSession() {
+    await restoreMissingAudioForExport();
     const folderName = (els.topicTitle.value || 'neutralnote_session').trim().replace(/[^a-z0-9_-]+/gi, '_');
     const metadata = {
       format: 'NeutralNote Session',
-      formatVersion: 2,
+      formatVersion: 3,
       includesEmbeddedAudio: true,
-      audioEncoding: 'data-url',
+      audioEncoding: 'embedded-data-url',
+      portableSession: true,
       topicTitle: els.topicTitle.value.trim(),
       speakersPresent: els.speakersPresent.value.trim(),
       exportedAt: new Date().toISOString(),
@@ -1411,6 +1423,7 @@
         audioMimeType: bite.audioBlob ? (bite.audioBlob.type || 'audio/wav') : null,
         audioByteLength: bite.audioBlob ? bite.audioBlob.size : 0,
         audioFileName: bite.audioBlob ? `bite_${String(i + 1).padStart(3, '0')}_${formatClock(bite.startAt - ((bite.sessionStartedAt || bite.startAt))).replace(/:/g, '-')}.wav` : null,
+        audioIncluded: Boolean(bite.audioBlob),
         audioDataUrl: bite.audioBlob ? await blobToDataURL(bite.audioBlob) : null
       });
     }
@@ -1419,12 +1432,12 @@
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${folderName || 'neutralnote_session'}.json`;
+    a.download = `${folderName || 'neutralnote_session'}.neutralnote.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
     const exportedAudioCount = metadata.bites.filter((bite) => Boolean(bite.audioDataUrl)).length;
     updateSystemMessage(
-      `Exported ${metadata.biteCount} bite${metadata.biteCount === 1 ? '' : 's'} with ${exportedAudioCount} embedded audio clip${exportedAudioCount === 1 ? '' : 's'}. This complete session file can restore the audio when imported.`,
+      `Exported one complete NeutralNote session file containing ${metadata.biteCount} transcript bite${metadata.biteCount === 1 ? '' : 's'} and ${exportedAudioCount} embedded audio bite${exportedAudioCount === 1 ? '' : 's'}. Importing this same file restores the audio players automatically.`,
       'ok'
     );
   }

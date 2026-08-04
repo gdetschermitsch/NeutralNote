@@ -13,6 +13,7 @@ Speech recognition support is browser-dependent, and Firefox/Safari may load the
 - Captures bite audio and the input meter from a selected audio device
 - Runs live browser speech recognition
 - Creates transcript bites with approximate matching audio clips
+- Exports one portable NeutralNote session file with transcript metadata and embedded bite audio; importing that file restores the audio players automatically
 - Lets the user manually assign a speaker to each bite
 - Exports the session as JSON with timestamps and embedded bite audio
 - Persists topic title, speakers, language, and preferred device in local storage
