@@ -79,7 +79,7 @@
   };
 
   function createId() {
-    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.createId();
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
     if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
       const bytes = new Uint8Array(16);
       window.crypto.getRandomValues(bytes);
