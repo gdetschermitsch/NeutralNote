@@ -55,78 +55,96 @@
           <button id="closeSettingsBtn" class="panel-toggle" type="button">Close</button>
         </div>
 
-        <section class="settings-section" aria-labelledby="captureSettingsTitle">
-          <h3 id="captureSettingsTitle">Capture</h3>
+        <details class="settings-section settings-disclosure install-settings-section" open>
+          <summary id="installSettingsTitle" class="settings-summary">
+            <span>Install NeutralNote App</span>
+            <span class="settings-summary-icon" aria-hidden="true"></span>
+          </summary>
+          <div class="settings-section-content" role="region" aria-labelledby="installSettingsTitle">
+            <p class="helper-text">Install NeutralNote as its own app, separate from Melodicaine and every other CRUXTAIN™ web app. It launches from a dedicated NeutralNote path and preserves the same session tools.</p>
+            <div id="installStatus" class="notice install-status" role="status" aria-live="polite">Checking whether this device can install NeutralNote…</div>
+            <div class="button-row install-actions">
+              <button id="installAppBtn" type="button">Install NeutralNote App</button>
+            </div>
+            <div id="installHelp" class="helper-text install-help" hidden></div>
+          </div>
+        </details>
 
-          <section class="startup-panel" aria-labelledby="startupTitle">
-            <div class="startup-header">
-              <div>
-                <h3 id="startupTitle">Startup Status</h3>
-                <p class="helper-text startup-subtitle">Check browser support and microphone access before you start a live session. Device selection applies to bite audio capture and the input meter. Live transcription follows the browser's speech-recognition microphone behavior.</p>
+        <details class="settings-section settings-disclosure about-settings-section">
+          <summary id="aboutSettingsTitle" class="settings-summary">
+            <span>About</span>
+            <span class="settings-summary-icon" aria-hidden="true"></span>
+          </summary>
+          <div class="settings-section-content" role="region" aria-labelledby="aboutSettingsTitle">
+            <p class="helper-text">View the NeutralNote© license notice and quick-use guide.</p>
+            <div class="button-row about-settings-actions">
+              <button id="aboutBtn">Open About NeutralNote©</button>
+            </div>
+          </div>
+        </details>
+
+        <details class="settings-section settings-disclosure capture-settings-section">
+          <summary id="captureSettingsTitle" class="settings-summary">
+            <span>Capture</span>
+            <span class="settings-summary-icon" aria-hidden="true"></span>
+          </summary>
+          <div class="settings-section-content" role="region" aria-labelledby="captureSettingsTitle">
+            <section class="startup-panel" aria-labelledby="startupTitle">
+              <div class="startup-header">
+                <div>
+                  <h3 id="startupTitle">Startup Status</h3>
+                  <p class="helper-text startup-subtitle">Check browser support and microphone access before you start a live session. Device selection applies to bite audio capture and the input meter. Live transcription follows the browser's speech-recognition microphone behavior.</p>
+                </div>
+                <div class="startup-actions">
+                  <button id="runSystemCheckBtn">Run Check</button>
+                </div>
               </div>
-              <div class="startup-actions">
-                <button id="runSystemCheckBtn">Run Check</button>
+
+              <div class="status-grid">
+                <div class="status-chip"><span>Browser</span><strong id="browserStatus">Checking…</strong></div>
+                <div class="status-chip"><span>Secure Context</span><strong id="secureContextStatus">Checking…</strong></div>
+                <div class="status-chip"><span>Microphone API</span><strong id="microphoneApiStatus">Checking…</strong></div>
+                <div class="status-chip"><span>Speech Recognition</span><strong id="speechApiStatus">Checking…</strong></div>
+                <div class="status-chip"><span>Permissions</span><strong id="permissionStatus">Checking…</strong></div>
+                <div class="status-chip"><span>Recommended Browser</span><strong id="browserRecommendation">Checking…</strong></div>
               </div>
+
+              <div id="systemMessage" class="notice startup-notice">Running startup check…</div>
+              <div id="permissionHelp" class="helper-text permission-help" hidden>Microphone blocked. Click the padlock/site settings icon in your browser, allow microphone access, then run the check again.</div>
+              <div id="exportWarning" class="warning-box">WebM/browser export behavior depends on the browser. Session export in NeutralNote© is JSON plus embedded bite audio, not real-time video rendering.</div>
+            </section>
+          </div>
+        </details>
+
+        <details class="settings-section settings-disclosure device-settings-section">
+          <summary id="deviceSettingsTitle" class="settings-summary">
+            <span>Microphone &amp; Recognition</span>
+            <span class="settings-summary-icon" aria-hidden="true"></span>
+          </summary>
+          <div class="settings-section-content" role="region" aria-labelledby="deviceSettingsTitle">
+            <div class="grid-two">
+              <label>
+                Default Microphone
+                <select id="audioDeviceSelect"></select>
+              </label>
+              <label>
+                Language
+                <select id="languageSelect">
+                  <option value="en-US">English (US)</option>
+                  <option value="en-GB">English (UK)</option>
+                  <option value="es-US">Spanish (US)</option>
+                  <option value="es-ES">Spanish (Spain)</option>
+                </select>
+              </label>
             </div>
 
-            <div class="status-grid">
-              <div class="status-chip"><span>Browser</span><strong id="browserStatus">Checking…</strong></div>
-              <div class="status-chip"><span>Secure Context</span><strong id="secureContextStatus">Checking…</strong></div>
-              <div class="status-chip"><span>Microphone API</span><strong id="microphoneApiStatus">Checking…</strong></div>
-              <div class="status-chip"><span>Speech Recognition</span><strong id="speechApiStatus">Checking…</strong></div>
-              <div class="status-chip"><span>Permissions</span><strong id="permissionStatus">Checking…</strong></div>
-              <div class="status-chip"><span>Recommended Browser</span><strong id="browserRecommendation">Checking…</strong></div>
+            <div class="notice transcription-notice">Transcription uses your browser's speech recognition engine, which may continue to follow the browser or operating system default microphone even when a different input is selected above.</div>
+
+            <div class="button-row device-actions">
+              <button id="refreshDevicesBtn">Refresh Devices</button>
             </div>
-
-            <div id="systemMessage" class="notice startup-notice">Running startup check…</div>
-            <div id="permissionHelp" class="helper-text permission-help" hidden>Microphone blocked. Click the padlock/site settings icon in your browser, allow microphone access, then run the check again.</div>
-            <div id="exportWarning" class="warning-box">WebM/browser export behavior depends on the browser. Session export in NeutralNote© is JSON plus embedded bite audio, not real-time video rendering.</div>
-          </section>
-
-        </section>
-
-        <section class="settings-section device-settings-section" aria-labelledby="deviceSettingsTitle">
-          <h3 id="deviceSettingsTitle">Microphone &amp; Recognition</h3>
-          <div class="grid-two">
-            <label>
-              Default Microphone
-              <select id="audioDeviceSelect"></select>
-            </label>
-            <label>
-              Language
-              <select id="languageSelect">
-                <option value="en-US">English (US)</option>
-                <option value="en-GB">English (UK)</option>
-                <option value="es-US">Spanish (US)</option>
-                <option value="es-ES">Spanish (Spain)</option>
-              </select>
-            </label>
           </div>
-
-          <div class="notice transcription-notice">Transcription uses your browser's speech recognition engine, which may continue to follow the browser or operating system default microphone even when a different input is selected above.</div>
-
-          <div class="button-row device-actions">
-            <button id="refreshDevicesBtn">Refresh Devices</button>
-          </div>
-        </section>
-
-        <section class="settings-section install-settings-section" aria-labelledby="installSettingsTitle">
-          <h3 id="installSettingsTitle">Install NeutralNote App</h3>
-          <p class="helper-text">Install NeutralNote as its own app, separate from Melodicaine and every other CRUXTAIN™ web app. It launches from a dedicated NeutralNote path and preserves the same session tools.</p>
-          <div id="installStatus" class="notice install-status" role="status" aria-live="polite">Checking whether this device can install NeutralNote…</div>
-          <div class="button-row install-actions">
-            <button id="installAppBtn" type="button">Install NeutralNote App</button>
-          </div>
-          <div id="installHelp" class="helper-text install-help" hidden></div>
-        </section>
-
-        <section class="settings-section about-settings-section" aria-labelledby="aboutSettingsTitle">
-          <h3 id="aboutSettingsTitle">About</h3>
-          <p class="helper-text">View the NeutralNote© license notice and quick-use guide.</p>
-          <div class="button-row about-settings-actions">
-            <button id="aboutBtn">Open About NeutralNote©</button>
-          </div>
-        </section>
+        </details>
       </div>
     </div>
 

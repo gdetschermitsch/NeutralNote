@@ -299,12 +299,66 @@ body.modal-active { overflow: hidden; }
 .modal-notice { margin-top: 16px; }
 .settings-section {
   margin-top: 16px;
-  padding: 16px;
+  padding: 0;
+  overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: #151a20;
 }
-.settings-section > h3 { margin: 0 0 12px; }
+.settings-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--text);
+  font-size: 1.17em;
+  font-weight: 700;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.settings-summary::-webkit-details-marker { display: none; }
+.settings-summary::marker { content: ""; }
+.settings-summary:hover { background: rgba(255, 255, 255, 0.035); }
+.settings-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+}
+.settings-summary-icon {
+  position: relative;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.035);
+}
+.settings-summary-icon::before,
+.settings-summary-icon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 12px;
+  height: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+.settings-summary-icon::after {
+  transform: translate(-50%, -50%) rotate(90deg);
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+.settings-disclosure[open] > .settings-summary {
+  border-bottom: 1px solid var(--line);
+}
+.settings-disclosure[open] > .settings-summary .settings-summary-icon::after {
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+.settings-section-content { padding: 16px; }
 .device-settings-section { margin-bottom: 2px; }
 .install-settings-section,
 .about-settings-section { margin-bottom: 2px; }
@@ -473,7 +527,9 @@ body.modal-active { overflow: hidden; }
   .bite-card,
   .live-box { border-radius: 12px; }
   .panel { padding: 12px; }
-  .settings-section { padding: 12px; }
+  .settings-section { padding: 0; }
+  .settings-summary { padding: 12px; }
+  .settings-section-content { padding: 12px; }
   .subtitle,
   .helper-text,
   .notice,
