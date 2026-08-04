@@ -1,15 +1,18 @@
 {
-  "id": "./",
+  "id": "/neutralnote-app-v2",
   "name": "NeutralNote",
   "short_name": "NeutralNote",
   "description": "Live browser-based capture, transcription, and audio-bite session tools for public debate and discourse.",
-  "start_url": "./",
+  "start_url": "./index.html?launch=neutralnote-app-v2",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0f1115",
   "theme_color": "#0f1115",
-  "categories": ["productivity", "utilities"],
+  "categories": [
+    "productivity",
+    "utilities"
+  ],
   "icons": [
     {
       "src": "./icons/neutralnote-192.png",

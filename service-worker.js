@@ -1,4 +1,4 @@
-const CACHE_NAME = 'neutralnote-app-v1';
+const CACHE_NAME = 'neutralnote-isolated-app-v2';
 const APP_SHELL = [
   './',
   './index.html',
@@ -26,7 +26,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key.startsWith('neutralnote-app-') && key !== CACHE_NAME)
+        keys.filter((key) => key.startsWith('neutralnote-isolated-app-') && key !== CACHE_NAME)
           .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
