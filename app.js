@@ -1214,21 +1214,41 @@
     updateSystemMessage(`Exported ${metadata.biteCount} bite${metadata.biteCount === 1 ? '' : 's'} to a lightweight JSON manifest without embedding audio blobs.`, 'ok');
   }
 
+  function syncModalBodyState() {
+    const anyModalOpen = !els.settingsModal.hidden || !els.aboutModal.hidden;
+    document.body.classList.toggle('modal-active', anyModalOpen);
+  }
+
   function openSettings() {
     closeAbout();
     els.settingsModal.hidden = false;
+    els.settingsModal.classList.add('is-open');
+    els.settingsModal.setAttribute('aria-hidden', 'false');
+    els.settingsBtn.setAttribute('aria-expanded', 'true');
+    syncModalBodyState();
+    window.requestAnimationFrame(() => {
+      try { els.closeSettingsBtn.focus({ preventScroll: true }); } catch (err) { els.closeSettingsBtn.focus(); }
+    });
   }
 
   function closeSettings() {
+    els.settingsModal.classList.remove('is-open');
     els.settingsModal.hidden = true;
+    els.settingsModal.setAttribute('aria-hidden', 'true');
+    els.settingsBtn.setAttribute('aria-expanded', 'false');
+    syncModalBodyState();
   }
 
   function openAbout() {
     els.aboutModal.hidden = false;
+    els.aboutModal.classList.add('is-open');
+    syncModalBodyState();
   }
 
   function closeAbout() {
+    els.aboutModal.classList.remove('is-open');
     els.aboutModal.hidden = true;
+    syncModalBodyState();
   }
 
 
@@ -1245,7 +1265,27 @@
     });
   }
 
-  els.settingsBtn.addEventListener('click', openSettings);
+  let lastSettingsActivationAt = 0;
+  function activateSettings(event) {
+    const now = Date.now();
+    if (now - lastSettingsActivationAt < 350) return;
+    lastSettingsActivationAt = now;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    openSettings();
+  }
+
+  // Keep ordinary desktop clicks, while explicitly supporting mobile Safari/WebView taps.
+  els.settingsBtn.addEventListener('click', activateSettings);
+  if ('PointerEvent' in window) {
+    els.settingsBtn.addEventListener('pointerup', (event) => {
+      if (event.pointerType === 'touch' || event.pointerType === 'pen') activateSettings(event);
+    }, { passive: false });
+  } else {
+    els.settingsBtn.addEventListener('touchend', activateSettings, { passive: false });
+  }
   els.closeSettingsBtn.addEventListener('click', closeSettings);
   els.settingsBackdrop.addEventListener('click', closeSettings);
   els.aboutBtn.addEventListener('click', openAbout);
