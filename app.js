@@ -19,6 +19,8 @@
     runSystemCheckBtn: document.getElementById('runSystemCheckBtn'),
     startBtn: document.getElementById('startBtn'),
     stopBtn: document.getElementById('stopBtn'),
+    importBtn: document.getElementById('importBtn'),
+    importSessionInput: document.getElementById('importSessionInput'),
     exportBtn: document.getElementById('exportBtn'),
     clearBtn: document.getElementById('clearBtn'),
     sessionStatus: document.getElementById('sessionStatus'),
@@ -75,6 +77,19 @@
     lastAutosaveAt: 0,
     restoredDraft: false
   };
+
+  function createId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.createId();
+    if (window.crypto && typeof window.crypto.getRandomValues === 'function') {
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = Array.from(bytes, byte => byte.toString(16).padStart(2, '0'));
+      return `${hex.slice(0, 4).join('')}-${hex.slice(4, 6).join('')}-${hex.slice(6, 8).join('')}-${hex.slice(8, 10).join('')}-${hex.slice(10).join('')}`;
+    }
+    return `neutralnote_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  }
 
   function setStatus(text) { els.sessionStatus.textContent = text; }
   function setRecognitionStatus(text) { els.recognitionStatus.textContent = text; }
@@ -378,7 +393,7 @@
       state.bites = bites.map((bite) => {
         const audioUrl = bite.audioBlob ? URL.createObjectURL(bite.audioBlob) : '';
         return {
-          id: bite.id || crypto.randomUUID(),
+          id: bite.id || createId(),
           text: bite.text || '',
           speaker: bite.speaker || 'Unassigned',
           startAt: bite.startAt,
@@ -824,7 +839,7 @@
     const audioBlob = createBiteAudioBlob(startAt, endAt);
     const audioUrl = audioBlob ? URL.createObjectURL(audioBlob) : '';
     const bite = {
-      id: crypto.randomUUID(),
+      id: createId(),
       text: cleaned,
       speaker: speaker || 'Unassigned',
       startAt,
@@ -1071,7 +1086,7 @@
       state.sessionStartedAt = Date.now();
       state.sessionEndedAt = null;
       state.lastFinalCommitAt = state.sessionStartedAt;
-      state.currentSessionId = crypto.randomUUID();
+      state.currentSessionId = createId();
       state.running = true;
       state.stopRequested = false;
 
@@ -1154,6 +1169,109 @@
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
+  }
+
+  function parseImportedTimestamp(value, fallback) {
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string' && value.trim()) {
+      const parsed = Date.parse(value);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    return fallback;
+  }
+
+  function normalizeImportedBite(rawBite, index, defaultSessionStartedAt) {
+    if (!rawBite || typeof rawBite !== 'object') return null;
+    const text = String(rawBite.text || '').replace(/\s+/g, ' ').trim();
+    if (!text) return null;
+
+    const fallbackStart = defaultSessionStartedAt + (index * 1000);
+    const startAt = parseImportedTimestamp(rawBite.startAtISO ?? rawBite.startAt, fallbackStart);
+    const endAtCandidate = parseImportedTimestamp(rawBite.endAtISO ?? rawBite.endAt, startAt + 1000);
+    const endAt = Math.max(startAt, endAtCandidate);
+    const sessionStartedAt = parseImportedTimestamp(
+      rawBite.sessionStartedAtISO ?? rawBite.sessionStartedAt,
+      defaultSessionStartedAt || startAt
+    );
+
+    return {
+      id: rawBite.id || createId(),
+      text,
+      speaker: String(rawBite.speaker || 'Unassigned'),
+      startAt,
+      endAt,
+      sessionId: rawBite.sessionId || null,
+      sessionStartedAt,
+      addedAt: Date.now() + index,
+      audioBlob: null,
+      audioUrl: ''
+    };
+  }
+
+  async function importSessionFile(file) {
+    if (!file) return;
+    if (state.running) stopSession();
+
+    let imported;
+    try {
+      imported = JSON.parse(await file.text());
+    } catch (err) {
+      updateSystemMessage('Import failed: select a valid NeutralNote JSON session file.', 'bad');
+      return;
+    }
+
+    if (!imported || typeof imported !== 'object' || !Array.isArray(imported.bites)) {
+      updateSystemMessage('Import failed: this JSON file does not contain a NeutralNote bites array.', 'bad');
+      return;
+    }
+
+    if (state.bites.length) {
+      const replaceCurrent = confirm('Importing will replace the current session and its transcript bites. Continue?');
+      if (!replaceCurrent) return;
+    }
+
+    const importedSessionStartedAt = parseImportedTimestamp(
+      imported.sessionStartedAt,
+      parseImportedTimestamp(imported.sessionStartedAtISO, Date.now())
+    );
+    const normalizedBites = imported.bites
+      .map((bite, index) => normalizeImportedBite(bite, index, importedSessionStartedAt))
+      .filter(Boolean)
+      .sort((a, b) => a.startAt - b.startAt);
+
+    revokeAllBiteUrls();
+    state.bites = normalizedBites;
+    state.pcmChunks = [];
+    state.pcmSampleRate = 0;
+    state.pcmChannelCount = 1;
+    state.pcmTotalSamples = 0;
+    state.pendingInterim = '';
+    state.sessionStartedAt = importedSessionStartedAt || (normalizedBites[0] ? normalizedBites[0].sessionStartedAt : null);
+    state.sessionEndedAt = parseImportedTimestamp(
+      imported.sessionEndedAt,
+      parseImportedTimestamp(imported.sessionEndedAtISO, normalizedBites.length ? normalizedBites[normalizedBites.length - 1].endAt : null)
+    );
+    state.currentSessionId = null;
+    state.lastFinalCommitAt = normalizedBites.length ? normalizedBites[normalizedBites.length - 1].endAt : null;
+    state.stopRequested = false;
+
+    els.topicTitle.value = String(imported.topicTitle || '');
+    els.speakersPresent.value = String(imported.speakersPresent || '');
+    els.startBtn.disabled = false;
+    els.stopBtn.disabled = true;
+    setStatus('Imported');
+    setRecognitionStatus('Not started');
+    els.liveBox.textContent = normalizedBites.length
+      ? `Imported ${normalizedBites.length} transcript bite${normalizedBites.length === 1 ? '' : 's'} from ${file.name}.`
+      : `Imported ${file.name}. This session contains no transcript bites.`;
+
+    renderBites();
+    savePreferences();
+    await autosaveSessionDraft();
+    updateSystemMessage(
+      `Imported ${normalizedBites.length} bite${normalizedBites.length === 1 ? '' : 's'} from ${file.name}. Exported NeutralNote JSON files do not embed bite audio, so imported bites contain transcript data only.`,
+      'ok'
+    );
   }
 
   async function exportSession() {
@@ -1304,6 +1422,15 @@
   els.runSystemCheckBtn.addEventListener('click', runSystemCheck);
   els.startBtn.addEventListener('click', startSession);
   els.stopBtn.addEventListener('click', stopSession);
+  els.importBtn.addEventListener('click', () => {
+    els.importSessionInput.value = '';
+    els.importSessionInput.click();
+  });
+  els.importSessionInput.addEventListener('change', async () => {
+    const [file] = els.importSessionInput.files || [];
+    await importSessionFile(file);
+    els.importSessionInput.value = '';
+  });
   els.exportBtn.addEventListener('click', exportSession);
   els.clearBtn.addEventListener('click', () => {
     if (confirm('Clear the current session and all stored bites?')) clearSession();
