@@ -1166,9 +1166,25 @@
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result);
-      reader.onerror = reject;
+      reader.onerror = () => reject(reader.error || new Error('Could not encode bite audio.'));
       reader.readAsDataURL(blob);
     });
+  }
+
+  function dataURLToBlob(dataUrl) {
+    if (typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return null;
+    const commaIndex = dataUrl.indexOf(',');
+    if (commaIndex < 0) throw new Error('Invalid embedded audio data.');
+
+    const header = dataUrl.slice(0, commaIndex);
+    const payload = dataUrl.slice(commaIndex + 1);
+    const mimeMatch = header.match(/^data:([^;,]+)/i);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'audio/wav';
+    const isBase64 = /;base64/i.test(header);
+    const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mimeType });
   }
 
   function parseImportedTimestamp(value, fallback) {
@@ -1234,10 +1250,60 @@
       imported.sessionStartedAt,
       parseImportedTimestamp(imported.sessionStartedAtISO, Date.now())
     );
-    const normalizedBites = imported.bites
-      .map((bite, index) => normalizeImportedBite(bite, index, importedSessionStartedAt))
-      .filter(Boolean)
-      .sort((a, b) => a.startAt - b.startAt);
+    const availableAudioBites = state.bites.filter((bite) => bite.audioBlob);
+    if (window.indexedDB) {
+      try {
+        const autosavedBites = await readAutosavedBites();
+        autosavedBites.forEach((bite) => {
+          if (bite.audioBlob) availableAudioBites.push(bite);
+        });
+      } catch (err) {
+        console.warn('Could not inspect autosaved audio while importing', err);
+      }
+    }
+
+    const normalizedBites = [];
+    let restoredAudioCount = 0;
+    let recoveredLegacyAudioCount = 0;
+    let damagedAudioCount = 0;
+
+    for (let index = 0; index < imported.bites.length; index++) {
+      const rawBite = imported.bites[index];
+      const normalized = normalizeImportedBite(rawBite, index, importedSessionStartedAt);
+      if (!normalized) continue;
+
+      const embeddedAudio = rawBite.audioDataUrl || rawBite.audioDataURL || null;
+      if (embeddedAudio) {
+        try {
+          normalized.audioBlob = dataURLToBlob(embeddedAudio);
+          if (normalized.audioBlob && normalized.audioBlob.size) {
+            normalized.audioUrl = URL.createObjectURL(normalized.audioBlob);
+            restoredAudioCount += 1;
+          }
+        } catch (err) {
+          damagedAudioCount += 1;
+          console.warn(`Could not restore embedded audio for bite ${index + 1}`, err);
+        }
+      } else {
+        const matchingStoredBite = availableAudioBites.find((candidate) => {
+          const idMatches = rawBite.id && candidate.id === rawBite.id;
+          const timeMatches = Math.abs(Number(candidate.startAt) - normalized.startAt) < 10
+            && Math.abs(Number(candidate.endAt) - normalized.endAt) < 10;
+          const textMatches = String(candidate.text || '').replace(/\s+/g, ' ').trim() === normalized.text;
+          return idMatches || (timeMatches && textMatches);
+        });
+        if (matchingStoredBite && matchingStoredBite.audioBlob) {
+          normalized.audioBlob = matchingStoredBite.audioBlob;
+          normalized.audioUrl = URL.createObjectURL(normalized.audioBlob);
+          restoredAudioCount += 1;
+          recoveredLegacyAudioCount += 1;
+        }
+      }
+
+      normalizedBites.push(normalized);
+    }
+
+    normalizedBites.sort((a, b) => a.startAt - b.startAt);
 
     revokeAllBiteUrls();
     state.bites = normalizedBites;
@@ -1262,21 +1328,45 @@
     setStatus('Imported');
     setRecognitionStatus('Not started');
     els.liveBox.textContent = normalizedBites.length
-      ? `Imported ${normalizedBites.length} transcript bite${normalizedBites.length === 1 ? '' : 's'} from ${file.name}.`
+      ? `Imported ${normalizedBites.length} transcript bite${normalizedBites.length === 1 ? '' : 's'} and restored ${restoredAudioCount} audio clip${restoredAudioCount === 1 ? '' : 's'} from ${file.name}.`
       : `Imported ${file.name}. This session contains no transcript bites.`;
 
     renderBites();
     savePreferences();
     await autosaveSessionDraft();
-    updateSystemMessage(
-      `Imported ${normalizedBites.length} bite${normalizedBites.length === 1 ? '' : 's'} from ${file.name}. Exported NeutralNote JSON files do not embed bite audio, so imported bites contain transcript data only.`,
-      'ok'
-    );
+
+    const missingAudioCount = normalizedBites.length - restoredAudioCount;
+    if (damagedAudioCount) {
+      updateSystemMessage(
+        `Imported ${normalizedBites.length} bite${normalizedBites.length === 1 ? '' : 's'} and restored ${restoredAudioCount} audio clip${restoredAudioCount === 1 ? '' : 's'}. ${damagedAudioCount} embedded audio clip${damagedAudioCount === 1 ? '' : 's'} could not be decoded.`,
+        'warn'
+      );
+    } else if (missingAudioCount > 0) {
+      const legacyRecoveryNote = recoveredLegacyAudioCount
+        ? ` ${recoveredLegacyAudioCount} clip${recoveredLegacyAudioCount === 1 ? ' was' : 's were'} recovered from this browser's autosave.`
+        : '';
+      updateSystemMessage(
+        `Imported ${normalizedBites.length} bite${normalizedBites.length === 1 ? '' : 's'} and restored ${restoredAudioCount} audio clip${restoredAudioCount === 1 ? '' : 's'}.${legacyRecoveryNote} ${missingAudioCount} bite${missingAudioCount === 1 ? '' : 's'} had no embedded audio; older NeutralNote exports contain transcript data only.`,
+        restoredAudioCount ? 'warn' : 'ok'
+      );
+    } else {
+      const legacyRecoveryNote = recoveredLegacyAudioCount
+        ? ` ${recoveredLegacyAudioCount} clip${recoveredLegacyAudioCount === 1 ? ' was' : 's were'} recovered from this browser's autosave.`
+        : '';
+      updateSystemMessage(
+        `Imported ${normalizedBites.length} bite${normalizedBites.length === 1 ? '' : 's'} with all ${restoredAudioCount} audio clip${restoredAudioCount === 1 ? '' : 's'} restored.${legacyRecoveryNote}`,
+        'ok'
+      );
+    }
   }
 
   async function exportSession() {
     const folderName = (els.topicTitle.value || 'neutralnote_session').trim().replace(/[^a-z0-9_-]+/gi, '_');
     const metadata = {
+      format: 'NeutralNote Session',
+      formatVersion: 2,
+      includesEmbeddedAudio: true,
+      audioEncoding: 'data-url',
       topicTitle: els.topicTitle.value.trim(),
       speakersPresent: els.speakersPresent.value.trim(),
       exportedAt: new Date().toISOString(),
@@ -1309,6 +1399,7 @@
       const bite = state.bites[i];
       metadata.bites.push({
         index: i + 1,
+        id: bite.id,
         speaker: bite.speaker,
         text: bite.text,
         startAtISO: new Date(bite.startAt).toISOString(),
@@ -1317,8 +1408,10 @@
         sessionStartedAtISO: bite.sessionStartedAt ? new Date(bite.sessionStartedAt).toISOString() : null,
         sessionRangeStart: formatClock(bite.startAt - ((bite.sessionStartedAt || bite.startAt))),
         sessionRangeEnd: formatClock(bite.endAt - ((bite.sessionStartedAt || bite.startAt))),
-        audioMimeType: bite.audioBlob ? bite.audioBlob.type : null,
-        audioFileName: bite.audioBlob ? `bite_${String(i + 1).padStart(3, '0')}_${formatClock(bite.startAt - ((bite.sessionStartedAt || bite.startAt))).replace(/:/g, '-')}.wav` : null
+        audioMimeType: bite.audioBlob ? (bite.audioBlob.type || 'audio/wav') : null,
+        audioByteLength: bite.audioBlob ? bite.audioBlob.size : 0,
+        audioFileName: bite.audioBlob ? `bite_${String(i + 1).padStart(3, '0')}_${formatClock(bite.startAt - ((bite.sessionStartedAt || bite.startAt))).replace(/:/g, '-')}.wav` : null,
+        audioDataUrl: bite.audioBlob ? await blobToDataURL(bite.audioBlob) : null
       });
     }
 
@@ -1329,7 +1422,11 @@
     a.download = `${folderName || 'neutralnote_session'}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    updateSystemMessage(`Exported ${metadata.biteCount} bite${metadata.biteCount === 1 ? '' : 's'} to a lightweight JSON manifest without embedding audio blobs.`, 'ok');
+    const exportedAudioCount = metadata.bites.filter((bite) => Boolean(bite.audioDataUrl)).length;
+    updateSystemMessage(
+      `Exported ${metadata.biteCount} bite${metadata.biteCount === 1 ? '' : 's'} with ${exportedAudioCount} embedded audio clip${exportedAudioCount === 1 ? '' : 's'}. This complete session file can restore the audio when imported.`,
+      'ok'
+    );
   }
 
   function syncModalBodyState() {
