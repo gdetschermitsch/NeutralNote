@@ -11,86 +11,77 @@
 <body>
   <div class="app-shell">
     <header class="topbar">
-      <div>
+      <div class="brand-block">
         <h1><img src="./NeutralNoteTitle.png" class="title-img" alt="NeutralNote"/></h1>
         <p class="subtitle">By CRUXTAIN™ · Live browser-based capture for public debate and discourse sessions.</p>
       </div>
+
+      <div class="header-status-strip" aria-label="Live session monitors">
+        <div class="status-card header-status-card">
+          <span class="label">Session Status</span>
+          <strong id="sessionStatus">Idle</strong>
+        </div>
+        <div class="status-card header-status-card header-monitor-card">
+          <span class="label">Input Monitor</span>
+          <canvas id="meterCanvas" width="300" height="48" aria-label="Microphone input level"></canvas>
+        </div>
+        <div class="status-card header-status-card">
+          <span class="label">Recognition</span>
+          <strong id="recognitionStatus">Not started</strong>
+        </div>
+      </div>
+
       <div class="topbar-actions">
-        <button id="aboutBtn">About</button>
+        <button id="settingsBtn" class="settings-button" aria-label="Open settings">
+          <span class="settings-icon" aria-hidden="true">⚙</span>
+          <span class="settings-text">Settings</span>
+        </button>
       </div>
     </header>
 
-    <main class="layout">
-      <section class="panel controls-panel">
-        <div class="panel-heading">
-          <h2>Capture</h2>
-          <button id="toggleCaptureBtn" class="panel-toggle" aria-expanded="true">Minimize</button>
+    <div id="settingsModal" class="modal" hidden>
+      <div class="modal-backdrop" id="settingsBackdrop"></div>
+      <div class="modal-card settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+        <div class="modal-header">
+          <h2 id="settingsTitle">Settings</h2>
+          <button id="closeSettingsBtn" class="panel-toggle">Close</button>
         </div>
 
-        <section class="startup-panel" aria-labelledby="startupTitle">
-          <div class="startup-header">
-            <div>
-              <h3 id="startupTitle">Startup Status</h3>
-              <p class="helper-text startup-subtitle">Check browser support and microphone access before you start a live session. Device selection applies to bite audio capture and the input meter. Live transcription follows the browser's speech-recognition microphone behavior.</p>
-            </div>
-            <div class="startup-actions">
-              <button id="runSystemCheckBtn">Run Check</button>
-            </div>
-          </div>
+        <section class="settings-section" aria-labelledby="captureSettingsTitle">
+          <h3 id="captureSettingsTitle">Capture</h3>
 
-          <div class="status-grid">
-            <div class="status-chip"><span>Browser</span><strong id="browserStatus">Checking…</strong></div>
-            <div class="status-chip"><span>Secure Context</span><strong id="secureContextStatus">Checking…</strong></div>
-            <div class="status-chip"><span>Microphone API</span><strong id="microphoneApiStatus">Checking…</strong></div>
-            <div class="status-chip"><span>Speech Recognition</span><strong id="speechApiStatus">Checking…</strong></div>
-            <div class="status-chip"><span>Permissions</span><strong id="permissionStatus">Checking…</strong></div>
-            <div class="status-chip"><span>Recommended Browser</span><strong id="browserRecommendation">Checking…</strong></div>
-          </div>
+          <section class="startup-panel" aria-labelledby="startupTitle">
+            <div class="startup-header">
+              <div>
+                <h3 id="startupTitle">Startup Status</h3>
+                <p class="helper-text startup-subtitle">Check browser support and microphone access before you start a live session. Device selection applies to bite audio capture and the input meter. Live transcription follows the browser's speech-recognition microphone behavior.</p>
+              </div>
+              <div class="startup-actions">
+                <button id="runSystemCheckBtn">Run Check</button>
+              </div>
+            </div>
 
-          <div id="systemMessage" class="notice startup-notice">Running startup check…</div>
-          <div id="permissionHelp" class="helper-text permission-help" hidden>Microphone blocked. Click the padlock/site settings icon in your browser, allow microphone access, then run the check again.</div>
-          <div id="exportWarning" class="warning-box">WebM/browser export behavior depends on the browser. Session export in NeutralNote© is JSON plus embedded bite audio, not real-time video rendering.</div>
+            <div class="status-grid">
+              <div class="status-chip"><span>Browser</span><strong id="browserStatus">Checking…</strong></div>
+              <div class="status-chip"><span>Secure Context</span><strong id="secureContextStatus">Checking…</strong></div>
+              <div class="status-chip"><span>Microphone API</span><strong id="microphoneApiStatus">Checking…</strong></div>
+              <div class="status-chip"><span>Speech Recognition</span><strong id="speechApiStatus">Checking…</strong></div>
+              <div class="status-chip"><span>Permissions</span><strong id="permissionStatus">Checking…</strong></div>
+              <div class="status-chip"><span>Recommended Browser</span><strong id="browserRecommendation">Checking…</strong></div>
+            </div>
+
+            <div id="systemMessage" class="notice startup-notice">Running startup check…</div>
+            <div id="permissionHelp" class="helper-text permission-help" hidden>Microphone blocked. Click the padlock/site settings icon in your browser, allow microphone access, then run the check again.</div>
+            <div id="exportWarning" class="warning-box">WebM/browser export behavior depends on the browser. Session export in NeutralNote© is JSON plus embedded bite audio, not real-time video rendering.</div>
+          </section>
+
         </section>
 
-        
-      </section>
-
-      <div id="aboutModal" class="modal" hidden>
-        <div class="modal-backdrop" id="aboutBackdrop"></div>
-        <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
-          <div class="modal-header">
-            <h2 id="aboutTitle">About NeutralNote©</h2>
-            <button id="closeAboutBtn" class="panel-toggle">Close</button>
-          </div>
-          <div class="notice modal-notice">
-			<strong>⚠️ IMPORTANT :</strong><br>
-			This project is NOT open source. All rights reserved under the CRUXTAIN™ Public Use License. Unauthorized reproduction, redistribution, or rebranding of CRUXTAIN™
-software or marks without permission is prohibited. You may use and study it freely, but may NOT: Reupload, Repackage, Sell, nor Distribute modified versions<br><br>
-			<strong>Quick Use Guide:</strong><br><br>
-
-            1. Click <strong>Run Check</strong> and ensure all systems are ready.<br>
-            2. Select your <strong>Audio Input for bite audio + meter</strong> and <strong>Language</strong>.<br>
-            3. Enter <strong>Topic Title</strong> and <strong>Speakers Present</strong>.<br>
-            4. Click <strong>Start Session</strong> to begin live transcription.<br>
-            <em>Note: the selected audio input controls the bite-audio capture and input meter. Live transcription still depends on how the browser routes speech recognition.</em><br><br>
-            5. Speak clearly — transcript appears in real time.<br>
-            6. Click <strong>Stop Session</strong> when finished.<br>
-            7. Review and edit <strong>Transcript Bites</strong> if needed.<br>
-            8. Click <strong>Export Session</strong> to save your data.<br>
-            9. Use <strong>Clear Session</strong> to reset everything.<br><br>
-
-            <em>Best performance in Chromium-based browsers.</em>
-          </div>
-        </div>
-      </div>
-
-      <section class="panel live-panel">
-        <h2>Live Transcript</h2>
-        <div class="live-box" id="liveBox">Awaiting session start…</div>
-<div id="captureBody" class="capture-body">
+        <section class="settings-section device-settings-section" aria-labelledby="deviceSettingsTitle">
+          <h3 id="deviceSettingsTitle">Microphone &amp; Recognition</h3>
           <div class="grid-two">
             <label>
-              Audio Input for Bite Audio + Meter
+              Default Microphone
               <select id="audioDeviceSelect"></select>
             </label>
             <label>
@@ -106,7 +97,56 @@ software or marks without permission is prohibited. You may use and study it fre
 
           <div class="notice transcription-notice">Transcription uses your browser's speech recognition engine, which may continue to follow the browser or operating system default microphone even when a different input is selected above.</div>
 
-          <div class="session-meta-inline capture-meta">
+          <div class="button-row device-actions">
+            <button id="refreshDevicesBtn">Refresh Devices</button>
+          </div>
+        </section>
+
+        <section class="settings-section about-settings-section" aria-labelledby="aboutSettingsTitle">
+          <h3 id="aboutSettingsTitle">About</h3>
+          <p class="helper-text">View the NeutralNote© license notice and quick-use guide.</p>
+          <div class="button-row about-settings-actions">
+            <button id="aboutBtn">Open About NeutralNote©</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <div id="aboutModal" class="modal" hidden>
+      <div class="modal-backdrop" id="aboutBackdrop"></div>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+        <div class="modal-header">
+          <h2 id="aboutTitle">About NeutralNote©</h2>
+          <button id="closeAboutBtn" class="panel-toggle">Close</button>
+        </div>
+        <div class="notice modal-notice">
+          <strong>⚠️ IMPORTANT :</strong><br>
+          This project is NOT open source. All rights reserved under the CRUXTAIN™ Public Use License. Unauthorized reproduction, redistribution, or rebranding of CRUXTAIN™
+software or marks without permission is prohibited. You may use and study it freely, but may NOT: Reupload, Repackage, Sell, nor Distribute modified versions<br><br>
+          <strong>Quick Use Guide:</strong><br><br>
+
+          1. Open <strong>Settings</strong>, click <strong>Run Check</strong>, and ensure all systems are ready.<br>
+          2. Select your <strong>Default Microphone</strong> and <strong>Language</strong> in Microphone &amp; Recognition settings.<br>
+          3. In <strong>Live Transcript</strong>, enter <strong>Topic Title</strong> and <strong>Speakers Present</strong>.<br>
+          4. Click <strong>Start Session</strong> there to begin live transcription.<br>
+          <em>Note: the selected audio input controls the bite-audio capture and input meter. Live transcription still depends on how the browser routes speech recognition.</em><br><br>
+          5. Speak clearly — transcript appears in real time.<br>
+          6. Click <strong>Stop Session</strong> when finished.<br>
+          7. Review and edit <strong>Transcript Bites</strong> if needed.<br>
+          8. Click <strong>Export Session</strong> to save your data.<br>
+          9. Use <strong>Clear Session</strong> to reset everything.<br><br>
+
+          <em>Best performance in Chromium-based browsers.</em>
+        </div>
+      </div>
+    </div>
+
+    <main class="layout">
+      <section class="panel live-panel">
+        <h2>Live Transcript</h2>
+
+        <div class="live-session-controls" aria-label="Live session controls">
+          <div class="session-meta-inline live-session-meta">
             <label>
               Topic Title
               <input id="topicTitle" type="text" placeholder="Debate topic / event title" />
@@ -117,30 +157,15 @@ software or marks without permission is prohibited. You may use and study it fre
             </label>
           </div>
 
-          <div class="button-row">
-            <button id="refreshDevicesBtn">Refresh Devices</button>
+          <div class="button-row live-session-actions">
             <button id="startBtn" class="primary">Start Session</button>
             <button id="stopBtn" disabled>Stop Session</button>
             <button id="exportBtn">Export Session</button>
             <button id="clearBtn" class="danger">Clear Session</button>
           </div>
-
-          <div class="status-row capture-status-row">
-            <div class="status-card">
-              <span class="label">Session Status</span>
-              <strong id="sessionStatus">Idle</strong>
-            </div>
-            <div class="status-card">
-              <span class="label">Recognition</span>
-              <strong id="recognitionStatus">Not started</strong>
-            </div>
-          </div>
         </div>
 
-        <div class="status-card monitor-card">
-          <span class="label">Input Monitor</span>
-          <canvas id="meterCanvas" width="260" height="48"></canvas>
-        </div>
+        <div class="live-box" id="liveBox">Awaiting session start…</div>
       </section>
 
       <section class="panel bites-panel">

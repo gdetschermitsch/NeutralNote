@@ -28,9 +28,10 @@
     bitesList: document.getElementById('bitesList'),
     biteCount: document.getElementById('biteCount'),
     biteTemplate: document.getElementById('biteTemplate'),
-    controlsPanel: document.querySelector('.controls-panel'),
-    captureBody: document.getElementById('captureBody'),
-    toggleCaptureBtn: document.getElementById('toggleCaptureBtn'),
+    settingsBtn: document.getElementById('settingsBtn'),
+    settingsModal: document.getElementById('settingsModal'),
+    closeSettingsBtn: document.getElementById('closeSettingsBtn'),
+    settingsBackdrop: document.getElementById('settingsBackdrop'),
     aboutBtn: document.getElementById('aboutBtn'),
     aboutModal: document.getElementById('aboutModal'),
     closeAboutBtn: document.getElementById('closeAboutBtn'),
@@ -525,14 +526,14 @@
     return (defaultLike || audioInputs[0]).deviceId || 'default';
   }
 
-  async function loadDevices() {
+  async function loadDevices(requestPermission = true) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
       els.audioDeviceSelect.innerHTML = '<option value="">Audio devices unavailable</option>';
       return;
     }
 
     try {
-      await ensureDevicePermission();
+      if (requestPermission) await ensureDevicePermission();
       const devices = await navigator.mediaDevices.enumerateDevices();
       const audioInputs = devices.filter(d => d.kind === 'audioinput');
       els.audioDeviceSelect.innerHTML = '';
@@ -964,6 +965,52 @@
     state.recognition.start();
   }
 
+  async function initializePassiveSystemStatus() {
+    const browser = getBrowserInfo();
+    const hasMicrophoneApi = Boolean(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+    setFeatureStatus(els.browserStatus, browser.name, browser.chromiumBased ? 'status-ok' : 'status-warn');
+    setFeatureStatus(els.browserRecommendation, browser.chromiumBased ? 'Recommended' : 'Use Chrome or Edge', browser.chromiumBased ? 'status-ok' : 'status-warn');
+    setFeatureStatus(els.secureContextStatus, window.isSecureContext ? 'Yes' : 'No', window.isSecureContext ? 'status-ok' : 'status-bad');
+    setFeatureStatus(els.microphoneApiStatus, hasMicrophoneApi ? 'Available' : 'Missing', hasMicrophoneApi ? 'status-ok' : 'status-bad');
+    setFeatureStatus(els.speechApiStatus, SpeechRecognitionClass ? 'Available' : 'Missing', SpeechRecognitionClass ? 'status-ok' : 'status-bad');
+    els.permissionHelp.hidden = true;
+
+    if (!hasMicrophoneApi) {
+      setFeatureStatus(els.permissionStatus, 'Unavailable', 'status-bad');
+      els.startBtn.disabled = true;
+      updateSystemMessage('This browser does not expose the microphone APIs NeutralNote needs.', 'bad');
+      els.audioDeviceSelect.innerHTML = '<option value="">Audio devices unavailable</option>';
+      return;
+    }
+
+    els.startBtn.disabled = false;
+    els.audioDeviceSelect.innerHTML = '<option value="default">Default Microphone</option>';
+    els.audioDeviceSelect.value = 'default';
+
+    let permissionLabel = 'Not requested';
+    let permissionTone = 'status-warn';
+    if (navigator.permissions && navigator.permissions.query) {
+      try {
+        const permission = await navigator.permissions.query({ name: 'microphone' });
+        if (permission.state === 'granted') {
+          permissionLabel = 'Previously granted';
+          permissionTone = 'status-ok';
+          await loadDevices(false);
+        } else if (permission.state === 'denied') {
+          permissionLabel = 'Blocked';
+          permissionTone = 'status-bad';
+          els.permissionHelp.hidden = false;
+        }
+      } catch (err) {
+        // Some browsers do not support querying microphone permission state.
+      }
+    }
+
+    setFeatureStatus(els.permissionStatus, permissionLabel, permissionTone);
+    updateSystemMessage('NeutralNote will not request microphone access automatically. Use Run Check, Refresh Devices, or Start Session when you are ready.', 'ok');
+  }
+
   async function runSystemCheck() {
     const browser = getBrowserInfo();
     setFeatureStatus(els.browserStatus, browser.name, browser.chromiumBased ? 'status-ok' : 'status-warn');
@@ -996,7 +1043,7 @@
       } else {
         updateSystemMessage('System check passed. Device selection controls bite audio capture and the input meter. Live transcription still depends on the browser speech engine.', 'ok');
       }
-      await loadDevices();
+      await loadDevices(false);
     } catch (err) {
       console.error(err);
       els.startBtn.disabled = true;
@@ -1167,10 +1214,13 @@
     updateSystemMessage(`Exported ${metadata.biteCount} bite${metadata.biteCount === 1 ? '' : 's'} to a lightweight JSON manifest without embedding audio blobs.`, 'ok');
   }
 
-  function setCaptureMinimized(minimized) {
-    els.controlsPanel.classList.toggle('minimized', minimized);
-    els.toggleCaptureBtn.textContent = minimized ? 'Expand' : 'Minimize';
-    els.toggleCaptureBtn.setAttribute('aria-expanded', minimized ? 'false' : 'true');
+  function openSettings() {
+    closeAbout();
+    els.settingsModal.hidden = false;
+  }
+
+  function closeSettings() {
+    els.settingsModal.hidden = true;
   }
 
   function openAbout() {
@@ -1195,15 +1245,19 @@
     });
   }
 
-  els.toggleCaptureBtn.addEventListener('click', () => {
-    const minimized = !els.controlsPanel.classList.contains('minimized');
-    setCaptureMinimized(minimized);
-  });
+  els.settingsBtn.addEventListener('click', openSettings);
+  els.closeSettingsBtn.addEventListener('click', closeSettings);
+  els.settingsBackdrop.addEventListener('click', closeSettings);
   els.aboutBtn.addEventListener('click', openAbout);
   els.closeAboutBtn.addEventListener('click', closeAbout);
   els.aboutBackdrop.addEventListener('click', closeAbout);
   document.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape' && !els.aboutModal.hidden) closeAbout();
+    if (event.key !== 'Escape') return;
+    if (!els.aboutModal.hidden) {
+      closeAbout();
+      return;
+    }
+    if (!els.settingsModal.hidden) closeSettings();
   });
 
   els.refreshDevicesBtn.addEventListener('click', loadDevices);
@@ -1237,9 +1291,8 @@
 
   loadPreferences();
   attachPersistence();
-  setCaptureMinimized(false);
   restoreSessionDraft().finally(() => {
     renderBites();
-    runSystemCheck();
+    initializePassiveSystemStatus();
   });
 })();
