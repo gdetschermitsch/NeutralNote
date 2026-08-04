@@ -38,6 +38,9 @@
     aboutModal: document.getElementById('aboutModal'),
     closeAboutBtn: document.getElementById('closeAboutBtn'),
     aboutBackdrop: document.getElementById('aboutBackdrop'),
+    installAppBtn: document.getElementById('installAppBtn'),
+    installStatus: document.getElementById('installStatus'),
+    installHelp: document.getElementById('installHelp'),
     browserStatus: document.getElementById('browserStatus'),
     secureContextStatus: document.getElementById('secureContextStatus'),
     microphoneApiStatus: document.getElementById('microphoneApiStatus'),
@@ -77,6 +80,8 @@
     lastAutosaveAt: 0,
     restoredDraft: false
   };
+
+  let deferredInstallPrompt = null;
 
   function createId() {
     if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
@@ -1442,6 +1447,155 @@
     );
   }
 
+  function isIosDevice() {
+    const ua = navigator.userAgent || '';
+    const iOSUserAgent = /iPad|iPhone|iPod/i.test(ua);
+    const iPadDesktopMode = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    return iOSUserAgent || iPadDesktopMode;
+  }
+
+  function isStandaloneApp() {
+    return Boolean(
+      (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+      navigator.standalone === true
+    );
+  }
+
+  function canUsePwaFeatures() {
+    const localHost = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    return location.protocol === 'https:' || localHost;
+  }
+
+  function setInstallStatus(message, tone) {
+    if (!els.installStatus) return;
+    els.installStatus.textContent = message;
+    els.installStatus.classList.remove('is-ready', 'is-warning');
+    if (tone) els.installStatus.classList.add(tone);
+  }
+
+  function showInstallHelp(message) {
+    if (!els.installHelp) return;
+    els.installHelp.textContent = message;
+    els.installHelp.hidden = false;
+  }
+
+  function hideInstallHelp() {
+    if (!els.installHelp) return;
+    els.installHelp.hidden = true;
+    els.installHelp.textContent = '';
+  }
+
+  function updateInstallUi() {
+    if (!els.installAppBtn) return;
+
+    if (isStandaloneApp()) {
+      setInstallStatus('NeutralNote is already installed and running as an app.', 'is-ready');
+      els.installAppBtn.textContent = 'NeutralNote Is Installed';
+      els.installAppBtn.disabled = true;
+      hideInstallHelp();
+      return;
+    }
+
+    els.installAppBtn.disabled = false;
+
+    if (!canUsePwaFeatures()) {
+      setInstallStatus('Installation becomes available when NeutralNote is opened from its secure HTTPS website.', 'is-warning');
+      els.installAppBtn.textContent = 'View Installation Requirement';
+      return;
+    }
+
+    if (deferredInstallPrompt) {
+      setInstallStatus('NeutralNote is ready to install on this device.', 'is-ready');
+      els.installAppBtn.textContent = 'Install NeutralNote App';
+      hideInstallHelp();
+      return;
+    }
+
+    if (isIosDevice()) {
+      setInstallStatus('On iPhone or iPad, Safari installs NeutralNote through Add to Home Screen.', 'is-warning');
+      els.installAppBtn.textContent = 'Show iPhone/iPad Install Steps';
+      return;
+    }
+
+    setInstallStatus('Use this button for installation steps. Chrome or Edge may also show a native install prompt when the app is eligible.', 'is-warning');
+    els.installAppBtn.textContent = 'Install NeutralNote App';
+  }
+
+  async function handleInstallApp() {
+    hideInstallHelp();
+
+    if (isStandaloneApp()) {
+      updateInstallUi();
+      return;
+    }
+
+    if (!canUsePwaFeatures()) {
+      showInstallHelp('NeutralNote must be opened from an HTTPS website before a browser can install it as an app. Upload this build to the same secure web host you normally use, open NeutralNote there, then return to Settings → Install NeutralNote App.');
+      return;
+    }
+
+    if (deferredInstallPrompt) {
+      const promptEvent = deferredInstallPrompt;
+      deferredInstallPrompt = null;
+      promptEvent.prompt();
+      try {
+        const choice = await promptEvent.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setInstallStatus('Installation accepted. NeutralNote will appear with your other apps.', 'is-ready');
+          els.installAppBtn.textContent = 'Installing NeutralNote…';
+          els.installAppBtn.disabled = true;
+          hideInstallHelp();
+        } else {
+          setInstallStatus('Installation was dismissed. You can still install from the browser menu or reload to try the native prompt again.', 'is-warning');
+          els.installAppBtn.textContent = 'View Installation Steps';
+          els.installAppBtn.disabled = false;
+        }
+      } catch (err) {
+        console.warn('NeutralNote install prompt did not complete.', err);
+        els.installAppBtn.textContent = 'View Installation Steps';
+        els.installAppBtn.disabled = false;
+        showInstallHelp('Open your browser menu and choose Install app or Add to Home screen.');
+      }
+      return;
+    }
+
+    if (isIosDevice()) {
+      showInstallHelp(`iPhone/iPad installation:
+1. Open NeutralNote in Safari.
+2. Tap the Share button.
+3. Scroll and choose Add to Home Screen.
+4. Tap Add.
+
+NeutralNote will then launch from its home-screen icon in an app-style window.`);
+      return;
+    }
+
+    const browser = getBrowserInfo();
+    if (browser.name === 'Chrome' || browser.name === 'Edge') {
+      showInstallHelp('Open the browser menu (⋮ or …), then choose Install NeutralNote, Install app, or Apps → Install NeutralNote. If the option is not visible yet, reload the page once and return to this Settings section.');
+    } else if (browser.name === 'Safari') {
+      showInstallHelp('On macOS Safari, use File → Add to Dock when available. On older Safari versions, open NeutralNote in Chrome or Edge to use the standard app installation prompt.');
+    } else {
+      showInstallHelp('Open your browser menu and look for Install app or Add to Home screen. Chrome and Edge provide the most reliable desktop installation support.');
+    }
+  }
+
+  function registerNeutralNoteServiceWorker() {
+    if (!('serviceWorker' in navigator) || !canUsePwaFeatures()) {
+      updateInstallUi();
+      return;
+    }
+
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./service-worker.js', { scope: './' })
+        .then(() => updateInstallUi())
+        .catch((err) => {
+          console.warn('NeutralNote service worker registration failed.', err);
+          setInstallStatus('The app installer could not initialize. Reload the page or verify that the site is served over HTTPS.', 'is-warning');
+        });
+    }, { once: true });
+  }
+
   function syncModalBodyState() {
     const anyModalOpen = !els.settingsModal.hidden || !els.aboutModal.hidden;
     document.body.classList.toggle('modal-active', anyModalOpen);
@@ -1449,6 +1603,7 @@
 
   function openSettings() {
     closeAbout();
+    updateInstallUi();
     els.settingsModal.hidden = false;
     els.settingsModal.classList.add('is-open');
     els.settingsModal.setAttribute('aria-hidden', 'false');
@@ -1505,6 +1660,27 @@
     openSettings();
   }
 
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    updateInstallUi();
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    setInstallStatus('NeutralNote was installed successfully. You can launch it from your apps or home screen.', 'is-ready');
+    els.installAppBtn.textContent = 'NeutralNote Is Installed';
+    els.installAppBtn.disabled = true;
+    hideInstallHelp();
+  });
+
+  if (window.matchMedia) {
+    const standaloneQuery = window.matchMedia('(display-mode: standalone)');
+    if (typeof standaloneQuery.addEventListener === 'function') {
+      standaloneQuery.addEventListener('change', updateInstallUi);
+    }
+  }
+
   // Keep ordinary desktop clicks, while explicitly supporting mobile Safari/WebView taps.
   els.settingsBtn.addEventListener('click', activateSettings);
   if ('PointerEvent' in window) {
@@ -1519,6 +1695,7 @@
   els.aboutBtn.addEventListener('click', openAbout);
   els.closeAboutBtn.addEventListener('click', closeAbout);
   els.aboutBackdrop.addEventListener('click', closeAbout);
+  els.installAppBtn.addEventListener('click', handleInstallApp);
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
     if (!els.aboutModal.hidden) {
@@ -1568,6 +1745,8 @@
 
   loadPreferences();
   attachPersistence();
+  updateInstallUi();
+  registerNeutralNoteServiceWorker();
   restoreSessionDraft().finally(() => {
     renderBites();
     initializePassiveSystemStatus();

@@ -1,0 +1,33 @@
+{
+  "id": "./",
+  "name": "NeutralNote",
+  "short_name": "NeutralNote",
+  "description": "Live browser-based capture, transcription, and audio-bite session tools for public debate and discourse.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0f1115",
+  "theme_color": "#0f1115",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    {
+      "src": "./icons/neutralnote-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/neutralnote-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/neutralnote-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

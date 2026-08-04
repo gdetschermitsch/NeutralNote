@@ -6,6 +6,12 @@
   <title>NeutralNote©</title>
   <link rel="icon" href="./NeutralNote.ico" type="image/x-icon" />
   <link rel="shortcut icon" href="./NeutralNote.ico" type="image/x-icon" />
+  <link rel="apple-touch-icon" href="./icons/neutralnote-180.png" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#0f1115" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="NeutralNote" />
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
@@ -102,6 +108,16 @@
           </div>
         </section>
 
+        <section class="settings-section install-settings-section" aria-labelledby="installSettingsTitle">
+          <h3 id="installSettingsTitle">Install NeutralNote App</h3>
+          <p class="helper-text">Install NeutralNote on this device for one-tap access from your desktop, Start menu, dock, or mobile home screen. The installed app opens in its own window while preserving the same session tools.</p>
+          <div id="installStatus" class="notice install-status" role="status" aria-live="polite">Checking whether this device can install NeutralNote…</div>
+          <div class="button-row install-actions">
+            <button id="installAppBtn" type="button">Install NeutralNote App</button>
+          </div>
+          <div id="installHelp" class="helper-text install-help" hidden></div>
+        </section>
+
         <section class="settings-section about-settings-section" aria-labelledby="aboutSettingsTitle">
           <h3 id="aboutSettingsTitle">About</h3>
           <p class="helper-text">View the NeutralNote© license notice and quick-use guide.</p>
@@ -127,6 +143,7 @@ software or marks without permission is prohibited. You may use and study it fre
 
           1. Open <strong>Settings</strong>, click <strong>Run Check</strong>, and ensure all systems are ready.<br>
           2. Select your <strong>Default Microphone</strong> and <strong>Language</strong> in Microphone &amp; Recognition settings.<br>
+          Optional: use <strong>Install NeutralNote App</strong> in Settings for one-tap desktop or home-screen access.<br>
           3. In <strong>Live Transcript</strong>, enter <strong>Topic Title</strong> and <strong>Speakers Present</strong>.<br>
           4. Click <strong>Start Session</strong> there to begin live transcription.<br>
           <em>Note: the selected audio input controls the bite-audio capture and input meter. Live transcription still depends on how the browser routes speech recognition.</em><br><br>

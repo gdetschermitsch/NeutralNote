@@ -54,3 +54,9 @@ Export creates a single JSON file containing:
 - browser name used for export
 - all bites
 - each bite's text, speaker, range, and audio as a Data URL
+
+## Installable app (PWA)
+
+NeutralNote now includes a web app manifest, service worker, and app icons. When deployed from an HTTPS website, users can open **Settings → Install NeutralNote App** to install it on supported desktop and mobile devices. iPhone and iPad users install through Safari's **Share → Add to Home Screen** flow.
+
+Service workers and browser installation do not run directly from a `file://` URL. Test through HTTPS or localhost.

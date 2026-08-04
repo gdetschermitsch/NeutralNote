@@ -306,9 +306,33 @@ body.modal-active { overflow: hidden; }
 }
 .settings-section > h3 { margin: 0 0 12px; }
 .device-settings-section { margin-bottom: 2px; }
+.install-settings-section,
 .about-settings-section { margin-bottom: 2px; }
+.install-settings-section .helper-text,
 .about-settings-section .helper-text { margin: 0; }
+.install-actions,
 .about-settings-actions { margin-top: 12px; }
+.install-status { margin-top: 12px; }
+.install-status.is-ready {
+  border-color: rgba(74, 222, 128, 0.35);
+  background: rgba(74, 222, 128, 0.08);
+  color: #c8f7d8;
+}
+.install-status.is-warning {
+  border-color: rgba(251, 191, 36, 0.35);
+  background: rgba(251, 191, 36, 0.08);
+  color: #fde8b0;
+}
+.install-help {
+  margin-top: 12px !important;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  background: #10151b;
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-line;
+}
 .startup-panel {
   margin: 0;
   background: #12171d;
