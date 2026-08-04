@@ -38,6 +38,14 @@
     aboutModal: document.getElementById('aboutModal'),
     closeAboutBtn: document.getElementById('closeAboutBtn'),
     aboutBackdrop: document.getElementById('aboutBackdrop'),
+    donateBtn: document.getElementById('donateBtn'),
+    donationModal: document.getElementById('donationModal'),
+    donationTitle: document.getElementById('donationTitle'),
+    donationBackdrop: document.getElementById('donationBackdrop'),
+    closeDonationBtn: document.getElementById('closeDonationBtn'),
+    donationOkayBtn: document.getElementById('donationOkayBtn'),
+    donationDisclaimerStep: document.getElementById('donationDisclaimerStep'),
+    donationLinksStep: document.getElementById('donationLinksStep'),
     installAppBtn: document.getElementById('installAppBtn'),
     installStatus: document.getElementById('installStatus'),
     installHelp: document.getElementById('installHelp'),
@@ -78,7 +86,8 @@
     autosaveTimer: null,
     autosaveInFlight: false,
     lastAutosaveAt: 0,
-    restoredDraft: false
+    restoredDraft: false,
+    donationReturnFocus: null
   };
 
   let deferredInstallPrompt = null;
@@ -1597,7 +1606,7 @@ NeutralNote will then launch from its home-screen icon in an app-style window.`)
   }
 
   function syncModalBodyState() {
-    const anyModalOpen = !els.settingsModal.hidden || !els.aboutModal.hidden;
+    const anyModalOpen = !els.settingsModal.hidden || !els.aboutModal.hidden || !els.donationModal.hidden;
     document.body.classList.toggle('modal-active', anyModalOpen);
   }
 
@@ -1632,6 +1641,42 @@ NeutralNote will then launch from its home-screen icon in an app-style window.`)
     els.aboutModal.classList.remove('is-open');
     els.aboutModal.hidden = true;
     syncModalBodyState();
+  }
+
+  function focusWithoutScroll(element) {
+    if (!element || typeof element.focus !== 'function') return;
+    try { element.focus({ preventScroll: true }); } catch (err) { element.focus(); }
+  }
+
+  function openDonation() {
+    state.donationReturnFocus = document.activeElement;
+    els.donationTitle.textContent = 'Donation disclaimer';
+    els.donationDisclaimerStep.hidden = false;
+    els.donationLinksStep.hidden = true;
+    els.donationModal.hidden = false;
+    els.donationModal.classList.add('is-open');
+    els.donationModal.setAttribute('aria-hidden', 'false');
+    syncModalBodyState();
+    window.requestAnimationFrame(() => focusWithoutScroll(els.closeDonationBtn));
+  }
+
+  function showDonationLinks() {
+    els.donationTitle.textContent = 'Donate to CRUXTAIN';
+    els.donationDisclaimerStep.hidden = true;
+    els.donationLinksStep.hidden = false;
+    const firstLink = els.donationLinksStep.querySelector('a');
+    window.requestAnimationFrame(() => focusWithoutScroll(firstLink));
+  }
+
+  function closeDonation() {
+    if (els.donationModal.hidden) return;
+    els.donationModal.classList.remove('is-open');
+    els.donationModal.hidden = true;
+    els.donationModal.setAttribute('aria-hidden', 'true');
+    syncModalBodyState();
+    const returnFocus = state.donationReturnFocus;
+    state.donationReturnFocus = null;
+    window.requestAnimationFrame(() => focusWithoutScroll(returnFocus || els.donateBtn));
   }
 
 
@@ -1695,9 +1740,17 @@ NeutralNote will then launch from its home-screen icon in an app-style window.`)
   els.aboutBtn.addEventListener('click', openAbout);
   els.closeAboutBtn.addEventListener('click', closeAbout);
   els.aboutBackdrop.addEventListener('click', closeAbout);
+  els.donateBtn.addEventListener('click', openDonation);
+  els.closeDonationBtn.addEventListener('click', closeDonation);
+  els.donationOkayBtn.addEventListener('click', showDonationLinks);
+  els.donationBackdrop.addEventListener('click', closeDonation);
   els.installAppBtn.addEventListener('click', handleInstallApp);
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape') return;
+    if (!els.donationModal.hidden) {
+      closeDonation();
+      return;
+    }
     if (!els.aboutModal.hidden) {
       closeAbout();
       return;

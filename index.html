@@ -78,7 +78,14 @@
           <div class="settings-section-content" role="region" aria-labelledby="aboutSettingsTitle">
             <p class="helper-text">View the NeutralNote© license notice and quick-use guide.</p>
             <div class="button-row about-settings-actions">
-              <button id="aboutBtn">Open About NeutralNote©</button>
+              <button id="aboutBtn" type="button">Open About NeutralNote©</button>
+            </div>
+            <div class="about-support-block" aria-label="CRUXTAIN links and support">
+              <p class="about-support-label">CRUXTAIN™</p>
+              <div class="about-support-actions">
+                <a id="cruxtainBtn" class="support-button cruxtain-support-button" href="https://gdetschermitsch.github.io/CRUXTAIN/index.html" target="_blank" rel="noopener noreferrer" aria-label="Visit the CRUXTAIN website">CRUXTAIN</a>
+                <button id="donateBtn" class="support-button donate-support-button" type="button" aria-haspopup="dialog" aria-controls="donationModal">Donate</button>
+              </div>
             </div>
           </div>
         </details>
@@ -174,6 +181,35 @@ software or marks without permission is prohibited. You may use and study it fre
           9. Use <strong>Clear Session</strong> to reset everything.<br><br>
 
           <em>Best performance in Chromium-based browsers.</em>
+        </div>
+      </div>
+    </div>
+
+    <div id="donationModal" class="modal donation-modal" aria-hidden="true" hidden>
+      <div class="modal-backdrop" id="donationBackdrop"></div>
+      <div class="modal-card donation-card" role="dialog" aria-modal="true" aria-labelledby="donationTitle" aria-describedby="donationDisclaimer">
+        <div class="modal-header donation-header">
+          <div>
+            <p class="donation-eyebrow">Support CRUXTAIN™</p>
+            <h2 id="donationTitle">Donation disclaimer</h2>
+          </div>
+          <button id="closeDonationBtn" class="panel-toggle" type="button" aria-label="Close donation window">Close</button>
+        </div>
+
+        <div id="donationDisclaimerStep" class="donation-step">
+          <p id="donationDisclaimer" class="donation-copy">CRUXTAIN donations are used to support all CRUXTAIN projects, including the music studio, authorship, game development, web tools, products, and other projects. Donations are not tax deductible.</p>
+          <div class="donation-step-actions">
+            <button id="donationOkayBtn" class="primary" type="button">Okay</button>
+          </div>
+        </div>
+
+        <div id="donationLinksStep" class="donation-step" hidden>
+          <p class="donation-copy">Your support helps fund CRUXTAIN projects and continued development.</p>
+          <div class="donation-link-grid">
+            <a class="donation-link donation-link-primary" href="https://www.paypal.com/paypalme/CRUXTAIN" target="_blank" rel="noopener noreferrer">Donate with PayPal</a>
+            <a class="donation-link" href="https://venmo.com/u/Gage-Detschermitsch" target="_blank" rel="noopener noreferrer">Donate with Venmo</a>
+            <a class="donation-link" href="https://gdetschermitsch.github.io/CRUXTAIN/index.html" target="_blank" rel="noopener noreferrer">Visit CRUXTAIN</a>
+          </div>
         </div>
       </div>
     </div>
